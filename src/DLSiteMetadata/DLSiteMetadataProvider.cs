@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Playnite.SDK;
 using Playnite.SDK.Models;
 using Playnite.SDK.Plugins;
+using System.Text.RegularExpressions;
 
 namespace DLSiteMetadata;
 
@@ -35,21 +36,23 @@ public class DLSiteMetadataProvider : OnDemandMetadataProvider
     private bool _didRun;
 
     public static string? GetLinkFromGame(Game game)
+{
+    if (game.Name is not null)
     {
-        if (game.Name is not null)
+        if (game.Name.StartsWith(Scrapper.SiteBaseUrl)) return game.Name;
+
+        // Use a regular expression to find 'RJ' or 'RE' followed by 6-8 digits anywhere in the name
+        var match = Regex.Match(game.Name, @"(?:RJ|RE)(\d{6,8})", RegexOptions.IgnoreCase);
+        if (match.Success)
         {
-            if (game.Name.StartsWith(Scrapper.SiteBaseUrl)) return game.Name;
-
-            if (game.Name.StartsWith("RJ", StringComparison.OrdinalIgnoreCase) || game.Name.StartsWith("RE", StringComparison.OrdinalIgnoreCase))
-            {
-                return $"https://www.dlsite.com/maniax/work/=/product_id/{game.Name}.html";
-            }
+            string productID = match.Groups[1].Value;
+            return $"https://www.dlsite.com/maniax/work/=/product_id/{productID}.html";
         }
-
-        var dlSiteLink = game.Links?.FirstOrDefault(link => link.Name.Equals("DLsite", StringComparison.OrdinalIgnoreCase));
-        return dlSiteLink?.Url;
     }
 
+    var dlSiteLink = game.Links?.FirstOrDefault(link => link.Name.Equals("DLsite", StringComparison.OrdinalIgnoreCase));
+    return dlSiteLink?.Url;
+}
     private ScrapperResult? GetResult(GetMetadataFieldArgs args)
     {
         if (_didRun) return _result;
